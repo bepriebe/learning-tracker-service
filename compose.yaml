@@ -1,0 +1,40 @@
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/learning_tracker
+      DB_USERNAME: learning_tracker
+      DB_PASSWORD: learning_tracker
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: learning_tracker
+      POSTGRES_USER: learning_tracker
+      POSTGRES_PASSWORD: learning_tracker
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learning_tracker -d learning_tracker"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+  test:
+    build:
+      context: .
+      target: test
+    profiles:
+      - test
+
+volumes:
+  postgres-data:

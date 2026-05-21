@@ -1,0 +1,43 @@
+package de.bennisdurchstarterprogramm.learningtracker.goal;
+
+import java.net.URI;
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/goals")
+class GoalController {
+
+	private final GoalRepository goals;
+
+	GoalController(GoalRepository goals) {
+		this.goals = goals;
+	}
+
+	@GetMapping
+	List<GoalResponse> listGoals() {
+		return goals.findAll().stream()
+				.map(GoalResponse::from)
+				.toList();
+	}
+
+	@PostMapping
+	ResponseEntity<GoalResponse> createGoal(@Valid @RequestBody CreateGoalRequest request) {
+		Goal savedGoal = goals.save(new Goal(request.title(), request.description()));
+		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+				.path("/{id}")
+				.buildAndExpand(savedGoal.getId())
+				.toUri();
+
+		return ResponseEntity.created(location).body(GoalResponse.from(savedGoal));
+	}
+}
