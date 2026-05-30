@@ -1,5 +1,7 @@
 package de.bennisdurchstarterprogramm.learningtracker.goal;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +57,28 @@ class GoalApiTests {
 				.andExpect(jsonPath("$[0].id").isNotEmpty())
 				.andExpect(jsonPath("$[0].title").value("Containerize the service"))
 				.andExpect(jsonPath("$[0].description").doesNotExist());
+	}
+
+	@Test
+	void getsGoalById() throws Exception {
+		Goal savedGoal = goals.save(new Goal("Read the Goal API", "Understand the lookup endpoint."));
+
+		mvc.perform(get("/goals/{id}", savedGoal.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(savedGoal.getId().toString()))
+				.andExpect(jsonPath("$.title").value("Read the Goal API"))
+				.andExpect(jsonPath("$.description").value("Understand the lookup endpoint."));
+	}
+
+	@Test
+	void returnsNotFoundForUnknownGoal() throws Exception {
+		UUID unknownGoalId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+		mvc.perform(get("/goals/{id}", unknownGoalId))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.title").value("Resource not found"))
+				.andExpect(jsonPath("$.detail").value("Goal not found."))
+				.andExpect(jsonPath("$.goalId").value(unknownGoalId.toString()));
 	}
 
 	@Test

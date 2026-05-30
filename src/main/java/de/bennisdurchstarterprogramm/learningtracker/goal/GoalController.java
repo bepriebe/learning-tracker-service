@@ -2,9 +2,11 @@ package de.bennisdurchstarterprogramm.learningtracker.goal;
 
 import java.net.URI;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +30,13 @@ class GoalController {
 		return goals.findAll().stream()
 				.map(GoalResponse::from)
 				.toList();
+	}
+
+	@GetMapping("/{id}")
+	GoalResponse getGoal(@PathVariable UUID id) {
+		return goals.findById(id)
+				.map(GoalResponse::from)
+				.orElseThrow(() -> new GoalNotFoundException(id));
 	}
 
 	@PostMapping
