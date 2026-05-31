@@ -61,4 +61,26 @@ class GoalController {
 
 		return GoalResponse.from(savedGoal);
 	}
+
+	@PostMapping("/{id}/start")
+	GoalResponse startGoal(@PathVariable UUID id) {
+		Goal goal = goals.findById(id)
+				.orElseThrow(() -> new GoalNotFoundException(id));
+
+		goal.start();
+		Goal savedGoal = goals.save(goal);
+
+		return GoalResponse.from(savedGoal);
+	}
+
+	@PostMapping("/{id}/complete")
+	GoalResponse completeGoal(@PathVariable UUID id) {
+		Goal goal = goals.findById(id)
+				.orElseThrow(() -> new GoalNotFoundException(id));
+
+		goal.complete();
+		Goal savedGoal = goals.save(goal);
+
+		return GoalResponse.from(savedGoal);
+	}
 }

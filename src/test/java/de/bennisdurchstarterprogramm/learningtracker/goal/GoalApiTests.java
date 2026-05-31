@@ -145,6 +145,58 @@ class GoalApiTests {
 	}
 
 	@Test
+	void startsGoal() throws Exception {
+		Goal savedGoal = goals.save(new Goal("Start learning Spring", null));
+
+		mvc.perform(post("/goals/{id}/start", savedGoal.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(savedGoal.getId().toString()))
+				.andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+		mvc.perform(get("/goals/{id}", savedGoal.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+	}
+
+	@Test
+	void completesGoal() throws Exception {
+		Goal savedGoal = goals.save(new Goal("Finish first CRUD slice", null));
+		savedGoal.start();
+		goals.save(savedGoal);
+
+		mvc.perform(post("/goals/{id}/complete", savedGoal.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(savedGoal.getId().toString()))
+				.andExpect(jsonPath("$.status").value("DONE"));
+
+		mvc.perform(get("/goals/{id}", savedGoal.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("DONE"));
+	}
+
+	@Test
+	void returnsNotFoundWhenStartingUnknownGoal() throws Exception {
+		UUID unknownGoalId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+
+		mvc.perform(post("/goals/{id}/start", unknownGoalId))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.title").value("Resource not found"))
+				.andExpect(jsonPath("$.detail").value("Goal not found."))
+				.andExpect(jsonPath("$.goalId").value(unknownGoalId.toString()));
+	}
+
+	@Test
+	void returnsNotFoundWhenCompletingUnknownGoal() throws Exception {
+		UUID unknownGoalId = UUID.fromString("00000000-0000-0000-0000-000000000004");
+
+		mvc.perform(post("/goals/{id}/complete", unknownGoalId))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.title").value("Resource not found"))
+				.andExpect(jsonPath("$.detail").value("Goal not found."))
+				.andExpect(jsonPath("$.goalId").value(unknownGoalId.toString()));
+	}
+
+	@Test
 	void rejectsBlankTitle() throws Exception {
 		mvc.perform(post("/goals")
 						.contentType(MediaType.APPLICATION_JSON)

@@ -41,6 +41,14 @@ class Goal {
 		this.description = description;
 	}
 
+	void start() {
+		this.status = GoalStatus.IN_PROGRESS;
+	}
+
+	void complete() {
+		this.status = GoalStatus.DONE;
+	}
+
 	UUID getId() {
 		return id;
 	}
