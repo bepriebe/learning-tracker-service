@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -79,6 +80,63 @@ class GoalApiTests {
 				.andExpect(jsonPath("$.title").value("Resource not found"))
 				.andExpect(jsonPath("$.detail").value("Goal not found."))
 				.andExpect(jsonPath("$.goalId").value(unknownGoalId.toString()));
+	}
+
+	@Test
+	void updatesGoal() throws Exception {
+		Goal savedGoal = goals.save(new Goal("Read about controllers", "Understand GET endpoints."));
+
+		mvc.perform(put("/goals/{id}", savedGoal.getId())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "title": "Read about updates",
+								  "description": "Understand PUT endpoints."
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(savedGoal.getId().toString()))
+				.andExpect(jsonPath("$.title").value("Read about updates"))
+				.andExpect(jsonPath("$.description").value("Understand PUT endpoints."));
+
+		mvc.perform(get("/goals/{id}", savedGoal.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.title").value("Read about updates"))
+				.andExpect(jsonPath("$.description").value("Understand PUT endpoints."));
+	}
+
+	@Test
+	void returnsNotFoundWhenUpdatingUnknownGoal() throws Exception {
+		UUID unknownGoalId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+		mvc.perform(put("/goals/{id}", unknownGoalId)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "title": "Updated title"
+								}
+								"""))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.title").value("Resource not found"))
+				.andExpect(jsonPath("$.detail").value("Goal not found."))
+				.andExpect(jsonPath("$.goalId").value(unknownGoalId.toString()));
+	}
+
+	@Test
+	void rejectsBlankTitleWhenUpdatingGoal() throws Exception {
+		Goal savedGoal = goals.save(new Goal("Read about validation", null));
+
+		mvc.perform(put("/goals/{id}", savedGoal.getId())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "title": " "
+								}
+								"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.title").value("Invalid request"))
+				.andExpect(jsonPath("$.detail").value("Request validation failed."))
+				.andExpect(jsonPath("$.errors.title").value("title must not be blank"));
 	}
 
 	@Test

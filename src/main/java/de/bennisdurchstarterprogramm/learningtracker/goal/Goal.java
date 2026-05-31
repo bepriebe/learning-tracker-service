@@ -30,6 +30,11 @@ class Goal {
 		this.description = description;
 	}
 
+	void update(String title, String description) {
+		this.title = title;
+		this.description = description;
+	}
+
 	UUID getId() {
 		return id;
 	}
