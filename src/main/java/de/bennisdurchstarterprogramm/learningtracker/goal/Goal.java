@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -21,6 +23,10 @@ class Goal {
 
 	@Column(length = 1000)
 	private String description;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 30)
+	private GoalStatus status = GoalStatus.TODO;
 
 	protected Goal() {
 	}
@@ -45,5 +51,9 @@ class Goal {
 
 	String getDescription() {
 		return description;
+	}
+
+	GoalStatus getStatus() {
+		return status;
 	}
 }

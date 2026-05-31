@@ -46,7 +46,8 @@ class GoalApiTests {
 				.andExpect(header().string("Location", org.hamcrest.Matchers.matchesPattern(".*/goals/[0-9a-f-]+")))
 				.andExpect(jsonPath("$.id").isNotEmpty())
 				.andExpect(jsonPath("$.title").value("Build first backend slice"))
-				.andExpect(jsonPath("$.description").value("Expose the first Goal API."));
+				.andExpect(jsonPath("$.description").value("Expose the first Goal API."))
+				.andExpect(jsonPath("$.status").value("TODO"));
 	}
 
 	@Test
@@ -57,7 +58,8 @@ class GoalApiTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].id").isNotEmpty())
 				.andExpect(jsonPath("$[0].title").value("Containerize the service"))
-				.andExpect(jsonPath("$[0].description").doesNotExist());
+				.andExpect(jsonPath("$[0].description").doesNotExist())
+				.andExpect(jsonPath("$[0].status").value("TODO"));
 	}
 
 	@Test
@@ -68,7 +70,8 @@ class GoalApiTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(savedGoal.getId().toString()))
 				.andExpect(jsonPath("$.title").value("Read the Goal API"))
-				.andExpect(jsonPath("$.description").value("Understand the lookup endpoint."));
+				.andExpect(jsonPath("$.description").value("Understand the lookup endpoint."))
+				.andExpect(jsonPath("$.status").value("TODO"));
 	}
 
 	@Test
@@ -97,12 +100,14 @@ class GoalApiTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(savedGoal.getId().toString()))
 				.andExpect(jsonPath("$.title").value("Read about updates"))
-				.andExpect(jsonPath("$.description").value("Understand PUT endpoints."));
+				.andExpect(jsonPath("$.description").value("Understand PUT endpoints."))
+				.andExpect(jsonPath("$.status").value("TODO"));
 
 		mvc.perform(get("/goals/{id}", savedGoal.getId()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.title").value("Read about updates"))
-				.andExpect(jsonPath("$.description").value("Understand PUT endpoints."));
+				.andExpect(jsonPath("$.description").value("Understand PUT endpoints."))
+				.andExpect(jsonPath("$.status").value("TODO"));
 	}
 
 	@Test
