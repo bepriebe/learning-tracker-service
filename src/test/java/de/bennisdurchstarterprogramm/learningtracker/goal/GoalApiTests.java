@@ -188,6 +188,22 @@ class GoalApiTests {
 	}
 
 	@Test
+	void rejectsStartingCompletedGoal() throws Exception {
+		Goal savedGoal = goals.save(new Goal("Do not restart completed goals", null));
+		savedGoal.start();
+		savedGoal.complete();
+		goals.save(savedGoal);
+
+		mvc.perform(post("/goals/{id}/start", savedGoal.getId()))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.title").value("Invalid goal status transition"))
+				.andExpect(jsonPath("$.detail").value("Goal status transition is not allowed."))
+				.andExpect(jsonPath("$.goalId").value(savedGoal.getId().toString()))
+				.andExpect(jsonPath("$.currentStatus").value("DONE"))
+				.andExpect(jsonPath("$.targetStatus").value("IN_PROGRESS"));
+	}
+
+	@Test
 	void returnsNotFoundWhenStartingUnknownGoal() throws Exception {
 		UUID unknownGoalId = UUID.fromString("00000000-0000-0000-0000-000000000003");
 
