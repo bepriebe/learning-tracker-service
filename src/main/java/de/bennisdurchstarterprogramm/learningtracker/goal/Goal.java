@@ -46,6 +46,10 @@ class Goal {
 	}
 
 	void complete() {
+		if (status != GoalStatus.IN_PROGRESS) {
+			throw new InvalidGoalStatusTransitionException(id, status, GoalStatus.DONE);
+		}
+
 		this.status = GoalStatus.DONE;
 	}
 
