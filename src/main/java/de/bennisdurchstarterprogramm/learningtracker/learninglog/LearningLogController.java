@@ -1,8 +1,10 @@
 package de.bennisdurchstarterprogramm.learningtracker.learninglog;
 
 import java.net.URI;
+import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,14 +25,21 @@ class LearningLogController {
 
     @PostMapping
     ResponseEntity<LearningLogResponse> createLearningLog(@Valid @RequestBody CreateLearningLogRequest request) {
-        LearningLog savedLearningLog = learningLogs.save(
-                new LearningLog(request.topic(), request.summary(), request.nextStep()));
+		LearningLog savedLearningLog = learningLogs.save(
+				new LearningLog(request.topic(), request.summary(), request.nextStep()));
 
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(savedLearningLog.getId())
-                .toUri();
+		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+				.path("/{id}")
+				.buildAndExpand(savedLearningLog.getId())
+				.toUri();
 
-        return ResponseEntity.created(location).body(LearningLogResponse.from(savedLearningLog));
-    }
+		return ResponseEntity.created(location).body(LearningLogResponse.from(savedLearningLog));
+	}
+
+	@GetMapping
+	List<LearningLogResponse> listLearningLogs() {
+		return learningLogs.findAll().stream()
+				.map(LearningLogResponse::from)
+				.toList();
+	}
 }
