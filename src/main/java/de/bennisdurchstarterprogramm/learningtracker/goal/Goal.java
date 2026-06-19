@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "goals")
-class Goal {
+public class Goal {
 
 	@Id
 	@GeneratedValue
@@ -57,7 +57,7 @@ class Goal {
 		this.status = GoalStatus.DONE;
 	}
 
-	UUID getId() {
+	public UUID getId() {
 		return id;
 	}
 

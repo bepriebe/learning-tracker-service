@@ -1,5 +1,7 @@
 package de.bennisdurchstarterprogramm.learningtracker.learninglog;
 
+import java.util.UUID;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -13,5 +15,7 @@ record CreateLearningLogRequest(
         String summary,
 
         @Size(max = 1000, message = "nextStep must not exceed 1000 characters")
-        String nextStep) {
+        String nextStep,
+
+		UUID goalId) {
 }

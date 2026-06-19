@@ -2,10 +2,14 @@ package de.bennisdurchstarterprogramm.learningtracker.learninglog;
 
 import java.util.UUID;
 
+import de.bennisdurchstarterprogramm.learningtracker.goal.Goal;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -25,13 +29,22 @@ class LearningLog {
     @Column(length = 1000)
     private String nextStep;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "goal_id")
+	private Goal goal;
+
     protected LearningLog() {
     }
 
     LearningLog(String topic, String summary, String nextStep) {
+		this(topic, summary, nextStep, null);
+	}
+
+	LearningLog(String topic, String summary, String nextStep, Goal goal) {
         this.topic = topic;
         this.summary = summary;
         this.nextStep = nextStep;
+		this.goal = goal;
     }
 
     UUID getId() {
@@ -49,4 +62,8 @@ class LearningLog {
     String getNextStep() {
         return nextStep;
     }
+
+	Goal getGoal() {
+		return goal;
+	}
 }

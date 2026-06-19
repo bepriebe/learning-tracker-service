@@ -3,6 +3,8 @@ package de.bennisdurchstarterprogramm.learningtracker.learninglog;
 import java.net.URI;
 import java.util.List;
 
+import de.bennisdurchstarterprogramm.learningtracker.goal.Goal;
+import de.bennisdurchstarterprogramm.learningtracker.goal.GoalFinder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,16 +19,19 @@ import jakarta.validation.Valid;
 @RequestMapping("/learning-logs")
 class LearningLogController {
 
-    private final LearningLogRepository learningLogs;
+	private final LearningLogRepository learningLogs;
+	private final GoalFinder goalFinder;
 
-    LearningLogController(LearningLogRepository learningLogs) {
-        this.learningLogs = learningLogs;
-    }
+	LearningLogController(LearningLogRepository learningLogs, GoalFinder goalFinder) {
+		this.learningLogs = learningLogs;
+		this.goalFinder = goalFinder;
+	}
 
-    @PostMapping
-    ResponseEntity<LearningLogResponse> createLearningLog(@Valid @RequestBody CreateLearningLogRequest request) {
+	@PostMapping
+	ResponseEntity<LearningLogResponse> createLearningLog(@Valid @RequestBody CreateLearningLogRequest request) {
+		Goal goal = request.goalId() == null ? null : goalFinder.requireById(request.goalId());
 		LearningLog savedLearningLog = learningLogs.save(
-				new LearningLog(request.topic(), request.summary(), request.nextStep()));
+				new LearningLog(request.topic(), request.summary(), request.nextStep(), goal));
 
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{id}")

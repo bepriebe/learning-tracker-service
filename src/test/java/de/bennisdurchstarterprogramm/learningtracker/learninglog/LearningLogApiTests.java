@@ -1,5 +1,7 @@
 package de.bennisdurchstarterprogramm.learningtracker.learninglog;
 
+import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +27,12 @@ class LearningLogApiTests {
 	private LearningLogRepository learningLogs;
 
     @BeforeEach
-    void clearLearningLogs() {
+	void clearLearningLogs() {
+		learningLogs.deleteAll();
+	}
+
+	@AfterEach
+	void removeLearningLogs() {
 		learningLogs.deleteAll();
 	}
 
@@ -57,6 +64,51 @@ class LearningLogApiTests {
                 .andExpect(jsonPath("$[0].id").isNotEmpty())
                 .andExpect(jsonPath("$[0].topic").value("Docker Compose"))
                 .andExpect(jsonPath("$[0].summary").value("Healthchecks and volumes understood."))
-                .andExpect(jsonPath("$[0].nextStep").doesNotExist());
-    }
+				.andExpect(jsonPath("$[0].nextStep").doesNotExist());
+	}
+
+	@Test
+	void createsLearningLogLinkedToGoal() throws Exception {
+		String goalResponse = mvc.perform(post("/goals")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "title": "Understand container orchestration"
+								}
+								"""))
+				.andExpect(status().isCreated())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+		String goalId = JsonPath.read(goalResponse, "$.id");
+
+		mvc.perform(post("/learning-logs")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "topic": "Docker Compose",
+								  "summary": "Connected a learning log to a goal.",
+								  "goalId": "%s"
+								}
+								""".formatted(goalId)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.goalId").value(goalId));
+	}
+
+	@Test
+	void returnsNotFoundForUnknownGoal() throws Exception {
+		String unknownGoalId = "00000000-0000-0000-0000-000000000005";
+
+		mvc.perform(post("/learning-logs")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "topic": "Docker Compose",
+								  "summary": "Try to link an unknown goal.",
+								  "goalId": "%s"
+								}
+								""".formatted(unknownGoalId)))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.goalId").value(unknownGoalId));
+	}
 }
