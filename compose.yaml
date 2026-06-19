@@ -30,11 +30,17 @@ services:
       - postgres-data:/var/lib/postgresql
 
   test:
-    build:
-      context: .
-      target: test
+    image: eclipse-temurin:21-jdk
+    working_dir: /workspace
+    command: ./mvnw test
     profiles:
       - test
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+      - test-target:/workspace/target
 
 volumes:
   postgres-data:
+  maven-cache:
+  test-target:

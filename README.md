@@ -12,15 +12,23 @@ This service is the first runnable backend for Project 1.
 
 ## Container Workflow
 
-Build and run the test image:
+Run the tests in a temporary Java 21 container:
 
 ```bash
-docker compose --profile test build test
+docker compose --profile test run --rm test
 ```
 
-The test build runs `./mvnw test` in a Java 21 build container. It uses H2 as
-an in-memory database for the initial Spring context test, so the fast test path
-does not need PostgreSQL yet.
+The test container runs `./mvnw test` against the bind-mounted project. A named
+volume caches Maven dependencies, and another named volume keeps generated
+`target` files out of the host project. Tests use H2 in memory, so this fast
+test path does not need PostgreSQL. Unlike a Docker image build, every invocation
+executes the tests again.
+
+The Dockerfile still has a `test` stage for CI or an explicit image-build check:
+
+```bash
+docker build --target test .
+```
 
 Start the service and PostgreSQL:
 
