@@ -36,7 +36,7 @@ services:
     profiles:
       - test
     volumes:
-      - .:/workspace
+      - .:/workspace:ro
       - maven-cache:/root/.m2
       - test-target:/workspace/target
 
