@@ -26,6 +26,7 @@ operations exercises.
 - H2 for automated tests
 - Docker and Docker Compose
 - pgAdmin as an optional local database tool
+- Jenkins declarative pipeline for continuous integration
 
 Java, Maven and the databases run in containers. The host only needs Docker
 with the Compose plugin for the documented workflow.
@@ -152,6 +153,28 @@ checks:
 docker build --target test .
 ```
 
+## Jenkins Pipeline
+
+The repository contains an initial declarative pipeline in `Jenkinsfile`. It
+runs three stages:
+
+| Stage | Action |
+| --- | --- |
+| `Test` | Runs the test suite through the Compose `test` profile |
+| `Build image` | Builds the Dockerfile `runtime` target |
+| `Verify image` | Inspects the resulting local image |
+
+Each image is tagged as `learning-tracker-service:${BUILD_NUMBER}`. Concurrent
+builds are disabled, console output includes timestamps and Jenkins retains the
+ten most recent build records.
+
+The Jenkins agent needs a Linux shell, Docker with the Compose plugin and
+permission to access the Docker daemon. Java and Maven are still provided by
+the project containers and do not need to be installed on the agent.
+
+The current pipeline verifies the application and creates a local image. It
+does not yet push the image to a registry or deploy it to an environment.
+
 ## Configuration
 
 The application reads its database connection from environment variables:
@@ -190,7 +213,7 @@ Use it only when all local application and tool data may be discarded.
 - Hibernate currently updates the runtime schema through `ddl-auto=update`;
   explicit database migrations are not implemented yet.
 - Development and production configurations are not separated yet.
-- Image publication, deployment automation and orchestration are not part of
-  the current `main` branch.
+- The current pipeline does not publish images or deploy the application.
+- Container orchestration is not implemented yet.
 - Authentication and authorization are not implemented.
 - Monitoring currently consists of the Spring Boot health endpoint.
