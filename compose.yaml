@@ -51,7 +51,10 @@ services:
     profiles:
       - test
     volumes:
-      - .:/workspace:ro
+      - ./.mvn:/workspace/.mvn:ro
+      - ./mvnw:/workspace/mvnw:ro
+      - ./pom.xml:/workspace/pom.xml:ro
+      - ./src:/workspace/src:ro
       - maven-cache:/root/.m2
       - test-target:/workspace/target
 
