@@ -13,8 +13,34 @@ pipeline {
 
     stages {
         stage('Test') {
+            environment {
+                COMPOSE_PROJECT_NAME = "ci-${sh(script: 'printf "%s" "${JOB_NAME}:${BUILD_NUMBER}:${WORKSPACE}" | sha256sum | cut -c1-24', returnStdout: true).trim()}"
+            }
+
             steps {
-                sh 'docker compose --profile test run --rm test'
+                dir('target/surefire-reports') {
+                    deleteDir()
+                }
+                sh 'docker compose --profile test run --name "${COMPOSE_PROJECT_NAME}-test" test'
+            }
+
+            post {
+                always {
+                    script {
+                        try {
+                            sh '''
+                                mkdir -p target/surefire-reports
+                                docker cp "${COMPOSE_PROJECT_NAME}-test:/workspace/target/surefire-reports/." target/surefire-reports/
+                            '''
+                            junit testResults: 'target/surefire-reports/TEST-*.xml', allowEmptyResults: false
+                        } finally {
+                            sh '''
+                                docker rm -f "${COMPOSE_PROJECT_NAME}-test"
+                                docker compose --profile test down --volumes
+                            '''
+                        }
+                    }
+                }
             }
         }
 

@@ -168,9 +168,34 @@ Each image is tagged as `learning-tracker-service:${BUILD_NUMBER}`. Concurrent
 builds are disabled, console output includes timestamps and Jenkins retains the
 ten most recent build records.
 
+The `Test` stage retains its container until its Surefire reports have been
+copied from `/workspace/target/surefire-reports/` into the Jenkins workspace at
+`target/surefire-reports/`. Its `post { always { ... } }` block publishes
+`TEST-*.xml` with the `junit` step, including when Maven reports failed tests.
+The original test failure still fails the pipeline and prevents the image
+stages from running. Missing reports are treated as an error, not an empty
+successful test run.
+
+Old workspace reports are deleted before testing. A Compose project name derived
+from the job name, build number and workspace isolates each build's containers,
+network and volumes, including across branch jobs. These Docker resources are
+removed after publication, even if copying or publishing fails. This also means
+the CI Maven cache starts fresh for each build; local Compose volumes are not
+affected. Reports copied with `docker cp` belong to the agent user rather than
+the container's root user.
+
 The Jenkins agent needs a Linux shell, Docker with the Compose plugin and
-permission to access the Docker daemon. Java and Maven are still provided by
-the project containers and do not need to be installed on the agent.
+permission to access the Docker daemon, plus `sha256sum` and `cut`. Jenkins needs
+the JUnit plugin for the `junit` step. Java and Maven are still provided by the
+project containers and do not need to be installed on the agent.
+
+After pushing the branch, use **Build Now** in its Jenkins branch job. Open
+**Test Result** on the finished build and confirm that all 19 tests passed;
+subsequent builds provide test history. To check the failure path, temporarily
+introduce a failing assertion on the CI branch and run another build: it must
+fail, show the failed test, and skip both image stages. Revert that intentional
+test change immediately afterward and run a successful build again. A webhook
+for automatically building every push is not configured yet.
 
 The current pipeline verifies the application and creates a local image. It
 does not yet push the image to a registry or deploy it to an environment.
