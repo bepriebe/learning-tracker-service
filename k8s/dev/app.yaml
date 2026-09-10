@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: learning-tracker-service
+  namespace: learning-tracker-dev
+spec:
+  selector:
+    app: learning-tracker-service
+  ports:
+    - port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: learning-tracker-service
+  namespace: learning-tracker-dev
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 300
+  selector:
+    matchLabels:
+      app: learning-tracker-service
+  template:
+    metadata:
+      labels:
+        app: learning-tracker-service
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: app
+          # Replaced with an immutable GHCR digest by scripts/deploy-dev.sh.
+          image: ghcr.io/bepriebe/learning-tracker-service:deployment-placeholder
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://learning-tracker-postgres:5432/learning_tracker
+            - name: DB_USERNAME
+              value: learning_tracker
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: learning-tracker-db
+                  key: password
+            - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
+              value: "true"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE
+              value: readinessState,db
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              memory: 768Mi
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 48
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3

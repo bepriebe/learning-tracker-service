@@ -164,6 +164,7 @@ The repository contains a declarative pipeline in `Jenkinsfile`:
 | `Build image` | Builds the Dockerfile `runtime` target |
 | `Verify image` | Inspects the resulting local image |
 | `Publish image` | Optionally pushes the verified image to GHCR |
+| `Deploy dev` | On `dev` only: deploys the published image digest to k3s |
 
 Each image is tagged as `learning-tracker-service:${IMAGE_TAG}`, where the tag
 contains the first 12 characters of the branch SHA-256 hash, the abbreviated Git
@@ -203,9 +204,10 @@ for automatically building every push is not configured yet.
 
 ### Optional GHCR publication
 
-The boolean build parameter `PUBLISH_IMAGE` defaults to false. Publication runs
-only when it is enabled and the branch is `ci/jenkins-pipeline` or `main`.
-Other branches still run CI without using the registry credential.
+The boolean build parameter `PUBLISH_IMAGE` defaults to false. On
+`ci/jenkins-pipeline` and `main`, publication runs only when it is enabled.
+On `dev`, publication runs automatically before deployment, regardless of the
+parameter. Other branches still run CI without using the registry credential.
 
 Create a Jenkins **Username with password** credential with ID `ghcr-push`:
 username `bepriebe`, password a GitHub personal access token (classic) with
@@ -224,10 +226,62 @@ exit. The image source label links the package to this GitHub repository.
 New GHCR packages are private by default; a later Kubernetes deployment will need
 pull credentials unless the package is deliberately made public.
 
-Kubernetes deployment is not implemented yet. The prepared target namespaces are
-`learning-tracker-dev`, `learning-tracker-staging`, and `learning-tracker-prod`.
-Jenkins uses `/var/lib/jenkins/.kube/config` with context
-`learning-tracker-homelab` and identity `learning-tracker-deployer`.
+### Kubernetes Dev deployment
+
+Only the `dev` branch runs `Deploy dev`. The pipeline resolves the GHCR digest
+after publication and passes it to `bash scripts/deploy-dev.sh`. The script
+accepts only a SHA-256 digest from this application's GHCR repository; it does
+not deploy a mutable tag or another repository's image.
+
+Jenkins uses `/var/lib/jenkins/.kube/config`, context `learning-tracker-homelab`,
+and identity `learning-tracker-deployer`. All deployment resources explicitly
+target `learning-tracker-dev`. The agent needs Bash, kubectl, sed and awk in
+addition to the CI tools. The one-time secret setup also uses OpenSSL.
+
+Before the first Dev build, provision these two Secrets in `learning-tracker-dev`:
+
+- `ghcr-pull`: type `kubernetes.io/dockerconfigjson`, with a GitHub classic token
+  having `read:packages`. The application references this as an `imagePullSecret`.
+- `learning-tracker-db`: key `password`, used by both PostgreSQL and the app.
+  Run `bash scripts/create-dev-db-secret.sh` under an identity with the configured
+  kube context. It generates a random password without printing it and leaves an
+  existing Secret unchanged. Never commit generated credentials. Changing this
+  Secret after database initialization does not change the password in PostgreSQL;
+  rotation must be coordinated with the database.
+
+`k8s/dev/postgres.yaml` defines an internal Service, a single-replica PostgreSQL
+18 Deployment with `Recreate` strategy, and a 2 GiB PVC on the homelab's
+`local-path` StorageClass. PostgreSQL 18 mounts `/var/lib/postgresql`, matching
+the local Compose setup. This is a single-node-storage learning environment,
+not an HA database or a backup solution. Do not delete the PVC to update the app.
+
+`k8s/dev/app.yaml` defines the application's internal Service and Deployment.
+The deployment script waits for PostgreSQL, substitutes the image digest using
+`sed` without modifying the tracked file, applies the app and waits for rollout.
+Startup and liveness use `/actuator/health/liveness`; readiness uses
+`/actuator/health/readiness` and includes the database health indicator. Each
+rollout has a five-minute timeout. A failure fails the Jenkins build; it does
+not automatically roll back the deployment.
+
+For a manual health check, on a machine with the kube context available:
+
+```bash
+kubectl --context=learning-tracker-homelab --namespace=learning-tracker-dev \
+  port-forward service/learning-tracker-service 18080:8080
+```
+
+In a second terminal on that same machine:
+
+```bash
+curl --fail http://127.0.0.1:18080/actuator/health
+curl --fail http://127.0.0.1:18080/goals
+```
+
+The service is currently accessible inside the cluster or through port-forward;
+an Ingress is not configured. The planned mapping `main` to
+`learning-tracker-staging` and release tags `v*` to `learning-tracker-prod`
+with manual approval is not implemented yet. Tag discovery must be configured
+in Jenkins before release-tag builds can be used.
 
 ## Configuration
 
@@ -267,8 +321,8 @@ Use it only when all local application and tool data may be discarded.
 - Hibernate currently updates the runtime schema through `ddl-auto=update`;
   explicit database migrations are not implemented yet.
 - Development and production configurations are not separated yet.
-- GHCR publication requires the Jenkins credential and an enabled build parameter;
-  Kubernetes deployment is not implemented yet.
-- Container orchestration is not implemented yet.
+- GHCR publication requires the Jenkins credential. Dev deployment additionally
+  requires both Kubernetes Secrets and the configured k3s context.
+- Staging and production deployments are not implemented yet.
 - Authentication and authorization are not implemented.
 - Monitoring currently consists of the Spring Boot health endpoint.

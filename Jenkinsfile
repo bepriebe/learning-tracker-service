@@ -85,8 +85,9 @@ pipeline {
         stage('Publish image') {
             when {
                 allOf {
-                    expression { params.PUBLISH_IMAGE }
+                    expression { params.PUBLISH_IMAGE || env.BRANCH_NAME == 'dev' }
                     anyOf {
+                        branch 'dev'
                         branch 'ci/jenkins-pipeline'
                         branch 'main'
                     }
@@ -108,6 +109,21 @@ pipeline {
                     '''
                 }
                 echo "Published ${env.REGISTRY_IMAGE}:${env.IMAGE_TAG}"
+            }
+        }
+
+        stage('Deploy dev') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                sh '''
+                    set -eu
+                    DEPLOY_IMAGE="$(docker image inspect "${REGISTRY_IMAGE}:${IMAGE_TAG}" \
+                      --format '{{range .RepoDigests}}{{println .}}{{end}}' \
+                      | awk -v prefix="${REGISTRY_IMAGE}@sha256:" 'index($0, prefix) == 1 { print; exit }')"
+                    bash scripts/deploy-dev.sh "$DEPLOY_IMAGE"
+                '''
             }
         }
     }
