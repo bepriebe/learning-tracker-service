@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(name: 'PUBLISH_IMAGE', defaultValue: false,
+            description: 'Publish the tested image to GitHub Container Registry')
+    }
+
     options {
         disableConcurrentBuilds()
         timestamps()
@@ -9,9 +14,20 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'learning-tracker-service'
+        REGISTRY_IMAGE = 'ghcr.io/bepriebe/learning-tracker-service'
     }
 
     stages {
+        stage('Prepare image tag') {
+            steps {
+                script {
+                    def branchHash = sh(script: 'printf "%s" "$BRANCH_NAME" | sha256sum | cut -c1-12', returnStdout: true).trim()
+                    def revision = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim()
+                    env.IMAGE_TAG = "${branchHash}-${revision}-${env.BUILD_NUMBER}"
+                }
+            }
+        }
+
         stage('Test') {
             environment {
                 COMPOSE_PROJECT_NAME = "ci-${sh(script: 'printf "%s" "${JOB_NAME}:${BUILD_NUMBER}:${WORKSPACE}" | sha256sum | cut -c1-24', returnStdout: true).trim()}"
@@ -49,7 +65,8 @@ pipeline {
                 sh '''
                     docker build \
                       --target runtime \
-                      --tag "${IMAGE_NAME}:${BUILD_NUMBER}" \
+                      --label "org.opencontainers.image.source=https://github.com/bepriebe/learning-tracker-service" \
+                      --tag "${IMAGE_NAME}:${IMAGE_TAG}" \
                       .
                 '''
             }
@@ -59,9 +76,38 @@ pipeline {
             steps {
                 sh '''
                     docker image inspect \
-                      "${IMAGE_NAME}:${BUILD_NUMBER}" \
+                      "${IMAGE_NAME}:${IMAGE_TAG}" \
                       --format '{{.Id}}'
                 '''
+            }
+        }
+
+        stage('Publish image') {
+            when {
+                allOf {
+                    expression { params.PUBLISH_IMAGE }
+                    anyOf {
+                        branch 'ci/jenkins-pipeline'
+                        branch 'main'
+                    }
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'ghcr-push',
+                    usernameVariable: 'GHCR_USERNAME', passwordVariable: 'GHCR_TOKEN')]) {
+                    sh '''
+                        set +x
+                        set -eu
+                        DOCKER_CONFIG="$(mktemp -d)"
+                        export DOCKER_CONFIG
+                        trap 'rm -rf -- "$DOCKER_CONFIG"' EXIT
+                        printf '%s' "$GHCR_TOKEN" | docker login ghcr.io \
+                          --username "$GHCR_USERNAME" --password-stdin
+                        docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${REGISTRY_IMAGE}:${IMAGE_TAG}"
+                        docker push "${REGISTRY_IMAGE}:${IMAGE_TAG}"
+                    '''
+                }
+                echo "Published ${env.REGISTRY_IMAGE}:${env.IMAGE_TAG}"
             }
         }
     }

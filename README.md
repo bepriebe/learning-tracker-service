@@ -155,16 +155,20 @@ docker build --target test .
 
 ## Jenkins Pipeline
 
-The repository contains an initial declarative pipeline in `Jenkinsfile`. It
-runs three stages:
+The repository contains a declarative pipeline in `Jenkinsfile`:
 
 | Stage | Action |
 | --- | --- |
+| `Prepare image tag` | Combines a branch hash, Git revision and build number |
 | `Test` | Runs the test suite through the Compose `test` profile |
 | `Build image` | Builds the Dockerfile `runtime` target |
 | `Verify image` | Inspects the resulting local image |
+| `Publish image` | Optionally pushes the verified image to GHCR |
 
-Each image is tagged as `learning-tracker-service:${BUILD_NUMBER}`. Concurrent
+Each image is tagged as `learning-tracker-service:${IMAGE_TAG}`, where the tag
+contains the first 12 characters of the branch SHA-256 hash, the abbreviated Git
+revision and the build number. This distinguishes images from different branch
+jobs. Concurrent
 builds are disabled, console output includes timestamps and Jenkins retains the
 ten most recent build records.
 
@@ -197,8 +201,33 @@ fail, show the failed test, and skip both image stages. Revert that intentional
 test change immediately afterward and run a successful build again. A webhook
 for automatically building every push is not configured yet.
 
-The current pipeline verifies the application and creates a local image. It
-does not yet push the image to a registry or deploy it to an environment.
+### Optional GHCR publication
+
+The boolean build parameter `PUBLISH_IMAGE` defaults to false. Publication runs
+only when it is enabled and the branch is `ci/jenkins-pipeline` or `main`.
+Other branches still run CI without using the registry credential.
+
+Create a Jenkins **Username with password** credential with ID `ghcr-push`:
+username `bepriebe`, password a GitHub personal access token (classic) with
+`write:packages`. Keep the existing GitHub discovery credential separate.
+See [GitHub's registry authentication documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry).
+
+Run the updated branch once with publication disabled so Jenkins registers the
+parameter. Then use **Build with Parameters**, enable `PUBLISH_IMAGE`, and run
+again. The `Publish image` stage logs the pushed image reference and Docker's
+registry digest. The destination is
+`ghcr.io/bepriebe/learning-tracker-service:${IMAGE_TAG}`.
+
+The pipeline passes the token through standard input with shell tracing disabled.
+Docker login configuration is stored in a temporary directory and removed on shell
+exit. The image source label links the package to this GitHub repository.
+New GHCR packages are private by default; a later Kubernetes deployment will need
+pull credentials unless the package is deliberately made public.
+
+Kubernetes deployment is not implemented yet. The prepared target namespaces are
+`learning-tracker-dev`, `learning-tracker-staging`, and `learning-tracker-prod`.
+Jenkins uses `/var/lib/jenkins/.kube/config` with context
+`learning-tracker-homelab` and identity `learning-tracker-deployer`.
 
 ## Configuration
 
@@ -238,7 +267,8 @@ Use it only when all local application and tool data may be discarded.
 - Hibernate currently updates the runtime schema through `ddl-auto=update`;
   explicit database migrations are not implemented yet.
 - Development and production configurations are not separated yet.
-- The current pipeline does not publish images or deploy the application.
+- GHCR publication requires the Jenkins credential and an enabled build parameter;
+  Kubernetes deployment is not implemented yet.
 - Container orchestration is not implemented yet.
 - Authentication and authorization are not implemented.
 - Monitoring currently consists of the Spring Boot health endpoint.
